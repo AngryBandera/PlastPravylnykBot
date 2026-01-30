@@ -48,8 +48,29 @@ coverage.xml
 *.cover
 *.py.cover
 .hypothesis/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
 .pytest_cache/
 cover/
+
+# Bot data files
+data/stats.json
 
 # Translations
 *.mo
