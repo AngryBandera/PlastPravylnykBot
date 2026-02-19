@@ -31,7 +31,6 @@ CALLBACK_RELOAD = 'reload_data'
 
 # Emoji and symbols
 BACK_BUTTON_TEXT = '← Назад'
-MAIN_MENU_TEXT = '🏠 Головне меню'
 
 # Keyboard settings
 BUTTONS_PER_ROW = 2

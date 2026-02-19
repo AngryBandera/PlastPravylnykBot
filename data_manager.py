@@ -7,6 +7,13 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+def _normalize_multiline_text(value: Any) -> str:
+    """Convert escaped newline sequences to real line breaks."""
+    if pd.isna(value):
+        return ''
+    return str(value).replace('\\n', '\n').strip()
+
+
 class DataManager:
     """Manages loading and organizing content from CSV file."""
 
@@ -37,10 +44,15 @@ class DataManager:
             df = pd.read_csv(self.csv_path)
             
             # Validate required columns
-            required_cols = {'id', 'parent_id', 'title', 'content_type', 'content', 'image_url', 'has_subtopics'}
+            required_cols = {'id', 'parent_id', 'title', 'content_type', 'content', 'has_subtopics'}
             if not required_cols.issubset(df.columns):
                 logger.error(f"CSV missing required columns. Required: {required_cols}")
                 return False
+
+            # Backward compatibility: allow CSV without image_url column
+            if 'image_url' not in df.columns:
+                logger.warning("CSV does not contain 'image_url' column. Defaulting image_url to None for all entries.")
+                df['image_url'] = None
 
             # Reset data structures
             self.data = {}
@@ -57,7 +69,7 @@ class DataManager:
                     'parent_id': parent_id,
                     'title': str(row['title']).strip(),
                     'content_type': str(row['content_type']).strip(),
-                    'content': str(row['content']).strip() if pd.notna(row['content']) else '',
+                    'content': _normalize_multiline_text(row['content']),
                     'image_url': str(row['image_url']).strip() if pd.notna(row['image_url']) else None,
                     'has_subtopics': str(row['has_subtopics']).lower() == 'true',
                 }

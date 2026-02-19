@@ -44,5 +44,5 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         text=text,
         reply_markup=keyboard,
-        parse_mode=constants.ParseMode.HTML
+        parse_mode=constants.ParseMode.MARKDOWN
     )

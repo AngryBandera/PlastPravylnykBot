@@ -48,14 +48,6 @@ def build_keyboard_for_entry(data_manager: DataManager, entry_id: str) -> Inline
                 )
             ])
 
-        # Option to go back to main menu
-        buttons.append([
-            InlineKeyboardButton(
-                text=config.MAIN_MENU_TEXT,
-                callback_data=f"{config.CALLBACK_PREFIX_BACK}main"
-            )
-        ])
-
     return InlineKeyboardMarkup(buttons)
 
 
@@ -82,8 +74,6 @@ def get_message_content(data_manager: DataManager, entry_id: str) -> Tuple[str, 
     elif entry['content_type'] == 'menu':
         # For menu, show title only
         children = data_manager.get_children_entries(entry_id)
-        if children:
-            text += f"\n\nДоступно {len(children)} разділів"
 
     image_path = entry['image_url']
 

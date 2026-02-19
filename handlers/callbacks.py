@@ -1,18 +1,84 @@
 """Callback query handlers for inline buttons."""
 import logging
 import os
-from telegram import Update, constants
+from telegram import Update, constants, InputMediaPhoto
 from telegram.ext import ContextTypes
 from handlers.navigation import (
     build_keyboard_for_entry,
     get_message_content,
-    extract_entry_id_from_callback
+    extract_entry_id_from_callback,
 )
 from data_manager import DataManager
 from stats_manager import StatsManager
 import config
 
 logger = logging.getLogger(__name__)
+
+
+async def _render_entry(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    keyboard,
+    image_path: str | None,
+) -> None:
+    """Render entry content as text or photo, replacing message when media type changes."""
+    query = update.callback_query
+    message = query.message
+
+    absolute_image_path = None
+    if image_path and image_path != 'null':
+        candidate_path = config.IMAGES_DIR / image_path
+        if os.path.exists(candidate_path):
+            absolute_image_path = candidate_path
+
+    if absolute_image_path:
+        if message and message.photo:
+            with open(absolute_image_path, 'rb') as image_file:
+                await query.edit_message_media(
+                    media=InputMediaPhoto(
+                        media=image_file,
+                        caption=text,
+                        parse_mode=constants.ParseMode.MARKDOWN,
+                    ),
+                    reply_markup=keyboard,
+                )
+            return
+
+        if message:
+            try:
+                await message.delete()
+            except Exception:
+                logger.warning("Failed to delete previous text message before sending photo", exc_info=True)
+
+        with open(absolute_image_path, 'rb') as image_file:
+            await context.bot.send_photo(
+                chat_id=message.chat_id,
+                photo=image_file,
+                caption=text,
+                reply_markup=keyboard,
+                parse_mode=constants.ParseMode.MARKDOWN,
+            )
+        return
+
+    if message and message.photo:
+        try:
+            await message.delete()
+        except Exception:
+            logger.warning("Failed to delete previous photo message before sending text", exc_info=True)
+        await context.bot.send_message(
+            chat_id=message.chat_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode=constants.ParseMode.MARKDOWN,
+        )
+        return
+
+    await query.edit_message_text(
+        text=text,
+        reply_markup=keyboard,
+        parse_mode=constants.ParseMode.MARKDOWN,
+    )
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -64,9 +130,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             text, _ = get_message_content(data_manager, 'main')
             keyboard = build_keyboard_for_entry(data_manager, 'main')
             await query.edit_message_text(
-                f"ℹ️ Цей розділ більше не доступний.\n\n{text}",
+                text=text,
                 reply_markup=keyboard,
-                parse_mode=constants.ParseMode.HTML
+                parse_mode=constants.ParseMode.MARKDOWN
             )
         else:
             await query.edit_message_text("❌ Помилка завантаження даних. Спробуйте /start")
@@ -77,27 +143,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     keyboard = build_keyboard_for_entry(data_manager, entry_id)
 
     try:
-        # Edit message with new content
-        await query.edit_message_text(
-            text=text,
-            reply_markup=keyboard,
-            parse_mode=constants.ParseMode.HTML
-        )
-        
-        # If there's an image, send it as a new message
-        if image_path and image_path != 'null' and os.path.exists(config.IMAGES_DIR / image_path):
-            try:
-                with open(config.IMAGES_DIR / image_path, 'rb') as image_file:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=image_file,
-                        caption=text,
-                        reply_markup=keyboard,
-                        parse_mode=constants.ParseMode.HTML
-                    )
-            except Exception as e:
-                logger.error(f"Error sending image: {e}")
-                
+        await _render_entry(update, context, text, keyboard, image_path)
+
     except Exception as e:
         logger.error(f"Error editing message: {e}")
         await query.edit_message_text(
