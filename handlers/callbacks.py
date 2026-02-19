@@ -1,7 +1,6 @@
 """Callback query handlers for inline buttons."""
 import logging
-import os
-from telegram import Update, constants, InputMediaPhoto
+from telegram import LinkPreviewOptions, Update, constants
 from telegram.ext import ContextTypes
 from handlers.navigation import (
     build_keyboard_for_entry,
@@ -20,57 +19,33 @@ async def _render_entry(
     context: ContextTypes.DEFAULT_TYPE,
     text: str,
     keyboard,
-    image_path: str | None,
+    image_url: str | None,
 ) -> None:
-    """Render entry content as text or photo, replacing message when media type changes."""
+    """Render entry content as a text message with optional image link preview."""
     query = update.callback_query
     message = query.message
 
-    absolute_image_path = None
-    if image_path and image_path != 'null':
-        candidate_path = config.IMAGES_DIR / image_path
-        if os.path.exists(candidate_path):
-            absolute_image_path = candidate_path
+    # Build link preview options for image URLs
+    link_preview = None
+    if image_url and image_url != 'null' and image_url.startswith('http'):
+        link_preview = LinkPreviewOptions(
+            url=image_url,
+            prefer_large_media=True,
+            show_above_text=True,
+        )
 
-    if absolute_image_path:
-        if message and message.photo:
-            with open(absolute_image_path, 'rb') as image_file:
-                await query.edit_message_media(
-                    media=InputMediaPhoto(
-                        media=image_file,
-                        caption=text,
-                        parse_mode=constants.ParseMode.MARKDOWN,
-                    ),
-                    reply_markup=keyboard,
-                )
-            return
-
-        if message:
-            try:
-                await message.delete()
-            except Exception:
-                logger.warning("Failed to delete previous text message before sending photo", exc_info=True)
-
-        with open(absolute_image_path, 'rb') as image_file:
-            await context.bot.send_photo(
-                chat_id=message.chat_id,
-                photo=image_file,
-                caption=text,
-                reply_markup=keyboard,
-                parse_mode=constants.ParseMode.MARKDOWN,
-            )
-        return
-
+    # If previous message was a photo, delete and send fresh text message
     if message and message.photo:
         try:
             await message.delete()
         except Exception:
-            logger.warning("Failed to delete previous photo message before sending text", exc_info=True)
+            logger.warning("Failed to delete previous photo message", exc_info=True)
         await context.bot.send_message(
             chat_id=message.chat_id,
             text=text,
             reply_markup=keyboard,
             parse_mode=constants.ParseMode.MARKDOWN,
+            link_preview_options=link_preview,
         )
         return
 
@@ -78,6 +53,7 @@ async def _render_entry(
         text=text,
         reply_markup=keyboard,
         parse_mode=constants.ParseMode.MARKDOWN,
+        link_preview_options=link_preview,
     )
 
 
