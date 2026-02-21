@@ -35,7 +35,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         stats_manager.track_command('start')
 
-    # Get main entry
+    # Send intro text (if configured as separate entry)
+    intro_entry = data_manager.get_entry('start_intro')
+    if intro_entry and intro_entry.get('content'):
+        await update.message.reply_text(
+            text=intro_entry['content'],
+            parse_mode=constants.ParseMode.MARKDOWN
+        )
+
+    # Get main menu entry
     entry_id = 'main'
     text, image_path = get_message_content(data_manager, entry_id)
     keyboard = build_keyboard_for_entry(data_manager, entry_id)

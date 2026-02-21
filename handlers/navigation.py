@@ -67,13 +67,10 @@ def get_message_content(data_manager: DataManager, entry_id: str) -> Tuple[str, 
         return "Інформацію не знайдено.", None
 
     text = entry['title']
-    
-    # Add content if it's text content
-    if entry['content_type'] == 'text' and entry['content']:
+
+    # Show content for both text and menu entries when content exists
+    if entry['content']:
         text += f"\n\n{entry['content']}"
-    elif entry['content_type'] == 'menu':
-        # For menu, show title only
-        children = data_manager.get_children_entries(entry_id)
 
     image_path = entry['image_url']
 
